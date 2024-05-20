@@ -13,10 +13,11 @@
   },
   "main": "model.js",
   "scripts": {
-    "session": "node ./model.js"
+    "train": "node ./model.js"
   },
   "license": "MIT",
   "dependencies": {
-    "@tensorflow/tfjs": "^4.19.0"
+    "@tensorflow/tfjs-node": "^4.19.0",
+    "moment": "^2.30.1"
   }
 }

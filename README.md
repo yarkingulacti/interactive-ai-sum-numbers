@@ -5,7 +5,7 @@
 ## İnteraktif model oturumunu başlatma
 
 ```bash
-$ yarn session
+$ yarn train
 
 Initial model training complete
 Enter "train" to provide new data, "test" to test the model, or "exit" to quit:
