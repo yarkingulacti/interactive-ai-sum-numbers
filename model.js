@@ -18,6 +18,24 @@ let xs = tf.tensor2d(
 
 let ys = tf.tensor2d([[3], [5], [7], [9], [11], [13], [15], [17]], [8, 1]);
 
+// Normalize the data
+let { xsNorm, ysNorm, inputMax, inputMin, labelMax, labelMin } = normalizeData(
+  xs,
+  ys
+);
+
+function normalizeData(xs, ys) {
+  const inputMax = xs.max(0);
+  const inputMin = xs.min(0);
+  const labelMax = ys.max();
+  const labelMin = ys.min();
+
+  const xsNorm = xs.sub(inputMin).div(inputMax.sub(inputMin));
+  const ysNorm = ys.sub(labelMin).div(labelMax.sub(labelMin));
+
+  return { xsNorm, ysNorm, inputMax, inputMin, labelMax, labelMin };
+}
+
 // Define the model
 const model = tf.sequential();
 model.add(
@@ -34,7 +52,7 @@ model.compile({
 });
 
 async function trainModel() {
-  await model.fit(xs, ys, {
+  await model.fit(xsNorm, ysNorm, {
     epochs: 500,
   });
   console.log("Initial model training complete");
@@ -42,8 +60,13 @@ async function trainModel() {
 }
 
 function testModel(input1, input2) {
-  const prediction = model.predict(tf.tensor2d([[input1, input2]], [1, 2]));
-  prediction.print();
+  const inputTensor = tf.tensor2d([[input1, input2]], [1, 2]);
+  const normalizedInput = inputTensor.sub(inputMin).div(inputMax.sub(inputMin));
+  const prediction = model.predict(normalizedInput);
+  const denormalizedPrediction = prediction
+    .mul(labelMax.sub(labelMin))
+    .add(labelMin);
+  denormalizedPrediction.print();
 }
 
 function promptUser() {
@@ -71,6 +94,14 @@ function promptUser() {
                     const newY = tf.tensor2d([[output]], [1, 1]);
                     xs = xs.concat(newX);
                     ys = ys.concat(newY);
+
+                    const normalizedData = normalizeData(xs, ys);
+                    xsNorm = normalizedData.xsNorm;
+                    ysNorm = normalizedData.ysNorm;
+                    inputMax = normalizedData.inputMax;
+                    inputMin = normalizedData.inputMin;
+                    labelMax = normalizedData.labelMax;
+                    labelMin = normalizedData.labelMin;
 
                     // Retrain the model with the updated dataset
                     retrainModel().then(() => {
@@ -128,7 +159,7 @@ function promptUser() {
 
 async function retrainModel() {
   console.log("Retraining model with new data...");
-  await model.fit(xs, ys, {
+  await model.fit(xsNorm, ysNorm, {
     epochs: 100,
   });
   console.log("Model retraining complete");
