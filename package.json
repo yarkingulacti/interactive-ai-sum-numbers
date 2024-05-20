@@ -1,0 +1,22 @@
+{
+  "name": "interactive-ai-sum-numbers",
+  "version": "0.0.1",
+  "categories": [
+    "AI",
+    "Testing",
+    "Education",
+    "Machine Learning"
+  ],
+  "author": {
+    "name": "Yarkın Gülaçtı",
+    "email": "yarkingulacti@outlook.com"
+  },
+  "main": "model.js",
+  "scripts": {
+    "session": "node ./model.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.19.0"
+  }
+}
