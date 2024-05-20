@@ -1,9 +1,11 @@
 # İnteraktif Yapay Zeka Modeli - İki sayının toplamı
 
+2 sayısının toplamını tahmin eden, eğitilebilen javascript yapay zeka modeli.
+
 ## İnteraktif model oturumunu başlatma
 
 ```bash
-$ node ./model.js
+$ yarn session
 
 Initial model training complete
 Enter "train" to provide new data, "test" to test the model, or "exit" to quit:
