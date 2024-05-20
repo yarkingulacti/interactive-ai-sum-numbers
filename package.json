@@ -11,11 +11,11 @@
     "name": "Yarkın Gülaçtı",
     "email": "yarkingulacti@outlook.com"
   },
-  "main": "model.js",
   "scripts": {
-    "train": "node ./model.js"
+    "start:sl": "node ./models/supervisedLearning.model.js",
+    "start:rl": "node ./models/reinforcedLearning.model.js"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@tensorflow/tfjs-node": "^4.19.0",
     "moment": "^2.30.1"

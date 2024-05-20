@@ -5,6 +5,11 @@ const tf = require("@tensorflow/tfjs-node");
 const moment = require("moment");
 const readline = require("readline");
 
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
 // Generate a batch of pairs of numbers and their sums
 function* dataGenerator(numBatches, batchSize) {
   for (let i = 0; i < numBatches; i++) {
@@ -47,20 +52,28 @@ function normalizeData(xs, ys) {
 const model = tf.sequential();
 model.add(
   tf.layers.dense({
-    units: 1,
+    units: 64, // Increased units for better learning
     inputShape: [2],
+    activation: "relu",
+    kernelInitializer: "heNormal",
+  })
+);
+model.add(
+  tf.layers.dense({
+    units: 1,
+    activation: "linear",
     kernelInitializer: "heNormal",
   })
 );
 
 // Compile the model with a lower learning rate
 model.compile({
-  optimizer: tf.train.sgd(0.001),
+  optimizer: tf.train.adam(0.001),
   loss: "meanSquaredError",
 });
 
 async function trainModel(numSamples) {
-  const batchSize = 1024;
+  const batchSize = 32;
   const numBatches = Math.ceil(numSamples / batchSize);
 
   const dataset = tf.data
@@ -69,22 +82,22 @@ async function trainModel(numSamples) {
       const { xsNorm, ysNorm } = normalizeData(xs, ys);
       return { xs: xsNorm, ys: ysNorm };
     })
-    .repeat(); // Ensure the dataset can provide enough data for all epochs
+    .repeat();
 
   await model.fitDataset(dataset, {
-    epochs: 10,
+    epochs: 200, // Increased epochs for better training
     batchesPerEpoch: numBatches,
     callbacks: {
       onEpochEnd: (epoch, logs) => {
         if (isNaN(logs.loss)) {
           throw new Error("Training stopped due to NaN loss");
         }
+        console.log(`Epoch ${epoch + 1}: loss = ${logs.loss}`);
       },
     },
   });
 
   console.log("Initial model training complete");
-  promptUser();
 }
 
 function testModel(input1, input2, inputMin, inputMax, labelMin, labelMax) {
@@ -101,94 +114,77 @@ function testModel(input1, input2, inputMin, inputMax, labelMin, labelMax) {
     : prediction.mul(labelRange).add(labelMin);
 
   denormalizedPrediction.array().then((arr) => {
-    console.log(arr[0][0]); // Output the prediction as a single number
+    console.log(`Prediction: ${arr[0][0]}`);
     promptUser();
   });
 }
 
 function promptUser() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
   rl.question(
-    'Enter "test" to test the model or "exit" to quit: ',
+    'Enter two numbers separated by a comma to test the model (or type "exit" to quit): ',
     (answer) => {
-      if (answer.toLowerCase() === "test") {
-        rl.question(
-          'Enter two numbers separated by a comma to test (e.g., "9,10"): ',
-          (testInputAnswer) => {
-            const testInputs = testInputAnswer.split(",").map(Number);
-            if (
-              testInputs.length === 2 &&
-              testInputs.every((num) => !isNaN(num))
-            ) {
-              const xs = tf.tensor2d([testInputs]);
-              const ys = tf.tensor2d([[testInputs[0] + testInputs[1]]]);
-              const { inputMax, inputMin, labelMax, labelMin } = normalizeData(
-                xs,
-                ys
-              );
-              testModel(
-                testInputs[0],
-                testInputs[1],
-                inputMin,
-                inputMax,
-                labelMin,
-                labelMax
-              );
-            } else {
-              console.log(
-                "Invalid input. Please enter two numbers separated by a comma."
-              );
-              rl.close();
-              promptUser();
-            }
-          }
-        );
-      } else if (answer.toLowerCase() === "exit") {
+      if (answer.toLowerCase() === "exit") {
         rl.close();
         console.log("Exiting...");
       } else {
-        console.log('Invalid command. Please enter "test" or "exit".');
-        rl.close();
-        promptUser();
+        const testInputs = answer.split(",").map(Number);
+        if (testInputs.length === 2 && testInputs.every((num) => !isNaN(num))) {
+          const xs = tf.tensor2d([testInputs]);
+          const ys = tf.tensor2d([[testInputs[0] + testInputs[1]]]);
+          const { inputMax, inputMin, labelMax, labelMin } = normalizeData(
+            xs,
+            ys
+          );
+          testModel(
+            testInputs[0],
+            testInputs[1],
+            inputMin,
+            inputMax,
+            labelMin,
+            labelMax
+          );
+        } else {
+          console.log(
+            "Invalid input. Please enter two numbers separated by a comma."
+          );
+          promptUser();
+        }
       }
     }
   );
 }
 
 function parseMillisecondsIntoReadableTime(milliseconds = 0) {
-  //Get hours from milliseconds
-  var hours = milliseconds / (1000 * 60 * 60);
-  var absoluteHours = Math.floor(hours);
-  var h = absoluteHours > 9 ? absoluteHours : "0" + absoluteHours;
-
-  //Get remainder from hours and convert to minutes
-  var minutes = (hours - absoluteHours) * 60;
-  var absoluteMinutes = Math.floor(minutes);
-  var m = absoluteMinutes > 9 ? absoluteMinutes : "0" + absoluteMinutes;
-
-  //Get remainder from minutes and convert to seconds
-  var seconds = (minutes - absoluteMinutes) * 60;
-  var absoluteSeconds = Math.floor(seconds);
-  var s = absoluteSeconds > 9 ? absoluteSeconds : "0" + absoluteSeconds;
-
-  return h + "h " + m + "m " + s + "s";
+  const hours = Math.floor(milliseconds / (1000 * 60 * 60));
+  const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+  return `${hours} hours ${minutes} minutes ${seconds} seconds`;
 }
 
 async function main() {
+  const datasetLength = parseInt(process.argv[2], 10);
+  if (isNaN(datasetLength)) {
+    console.error("Invalid dataset length. Please provide a valid number.");
+    process.exit(1);
+  }
+
   const startMs = Date.now();
-  console.log("Model Training started at " + moment().format("DD:MM:YYYY"));
-  console.log("Training model on 100 million samples...");
-  await trainModel(100000000); // Train with 100 million samples
-  console.log("Model Training ended at " + moment().format("DD:MM:YYYY"));
+  console.clear();
   console.log(
-    "Model Training lasted for " +
-      parseMillisecondsIntoReadableTime(Date.now() - startMs) / 3600 +
-      " "
+    "Model Training started at " + moment().format("DD/MM/YYYY hh:mm:ss")
   );
+  console.log(`Training model on ${datasetLength} samples...`);
+  readline.clearLine(process.stdout, 0);
+  await trainModel(datasetLength);
+  console.log(
+    "Model Training ended at " + moment().format("DD/MM/YYYY hh:mm:ss")
+  );
+  console.log(
+    `Model Training lasted for ${parseMillisecondsIntoReadableTime(
+      Date.now() - startMs
+    )}`
+  );
+  promptUser();
 }
 
 main();
